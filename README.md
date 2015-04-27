@@ -1,6 +1,6 @@
-Exoplanets
+Word Occurrences
 =========
 
-An interactive version of [XKCD 1071: Exoplanets](http://xkcd.com/1071/) using mass data from [The Extrasolar Planets Encyclopaedia](http://exoplanet.eu/catalog-RV.php) and adapted code from [the d3.js Bubble Chart example](http://mbostock.github.com/d3/ex/bubble.html) by [@mbostock](http://twitter.com/mbostock).
+An interactive visualization of the number of word occurrences in various public domain texts.
 
-http://codementum.github.com/exoplanets
+This code is heavily borrowed from [the d3.js Bubble Chart example](http://mbostock.github.com/d3/ex/bubble.html) by [@mbostock](http://twitter.com/mbostock) and [the interactive exoplanet visualization](http://codementum.org/exoplanets/) by [Lane Harrison](https://github.com/codementum/exoplanets).
