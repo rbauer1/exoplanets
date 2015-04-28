@@ -41,13 +41,13 @@
 
 <p>An interactive visualization of frequencies of words in public domain books. </p>
 
-Based on <a href="http://xkcd.com/1071/">XKCD 1071: Exoplanets</a> and adapted code from
-<a href="https://github.com/codementum/exoplanets"> Exo Planets</a> and in turn
-from <a href="http://mbostock.github.com/d3/ex/bubble.html"> the d3.js Bubble Chart example</a> (by <a href="http://twitter.com/mbostock">@mbostock</a>).</p>
+Based on and adapted from <a href="https://github.com/codementum/exoplanets"> Exo Planets</a> (by <a href="http://twitter.com/laneharrison">@laneharrison</a>) and in turn from <a href="http://mbostock.github.com/d3/ex/bubble.html"> the d3.js Bubble Chart example</a> (by <a href="http://twitter.com/mbostock">@mbostock</a>).</p>
 
-<p>Code can be found on <a href="https://github.com/rbauer1/exoplanets"> github</a>.</p>
+<p>Code can be found on <a href="https://github.com/rbauer1/wordOccurrences"> github</a>.</p>
 
 <p>Current Book: The King James Bible</p>
+
+<p>Word Length to Color <input type="text" id="lengthInput" name="Length" value="4"></p>
 
 <!--<script src="http://codementum.org/lib/codementumIcon.js"></script>-->
 
@@ -59,6 +59,8 @@ var r = 960
   , format = d3.format(".2f");
 
 var colors = [
+  '#AA00FF',
+  '#5500FF',
   '#0000FF',
   '#0055FF',
   '#00AAFF',
@@ -66,31 +68,46 @@ var colors = [
   '#00FFAA',
   '#00FF55',
   '#00FF00',
-  '#55FF00',
-  '#AAFF00',
-  '#FFFF00',
+  '#55DD00',
+  '#AADD00',
+  '#DDDD00',
   '#FFAA00',
   '#FF5500',
   '#FF0000',
   '#FF0055',
   '#FF00AA',
   '#FF00FF',
-  '#AA00FF',
-  '#5500FF',
   '#333333'
 ];
 
-// making a custom scale
-function cFill(d, reverse){
+//used to color only specific length, should probably not be global
+var len = 0;
+
+//TODO there's likely some optimization that can be done here regarding
+//coloring and recoloring, especially in the case of the colorBySpecificLen
+//functionality
+function cFill(d, opt){
   /*
   if(d.word === 'the')
     return d3.hsl('#E0E35D');
   */
   //colors based on word length
-  var val = d.className.length;
-  var offset = reverse ? 0 : colors.length;
-  var signFlip = reverse ? -1 : 1;
-  return d3.hsl(colors[(offset - signFlip*val)%colors.length]);
+  if(opt < 2){
+    var val = d.className.length;
+    var offset = opt==1 ? 0 : colors.length;
+    var signFlip = opt==1 ? -1 : 1;
+    return d3.hsl(colors[(offset - signFlip*val)%colors.length]);
+  }else{
+    //colors based on word length
+    var val = d.className.length;
+    if(val != len)
+      return d3.hsl("#D9DCDC");
+    //TODO add something here that will increment each time the function
+    //reaches this point. that will determine how many unique words of this
+    //length there are. ALTERNATIVELY: just preload this data (since there
+    //isn't much to it) and access when a specific length is inquired about
+    return d3.hsl(colors[val%colors.length]);
+  }
 }
 
 var bubble = d3.layout.pack()
@@ -141,21 +158,35 @@ vis.append("text")
 
 
 var colorByOther = false;
+var colorSpecificLen = false;
 
 //maybe consider doing something with either multiple book comparisons or
 //something like part of speech with this
 function toggleMetric() {
+  colorSpecificLen = false;
   if(!colorByOther) {
     colorByOther = true;
     d3.select('#wordLengthButton').style('fill', '#156B87');
     d3.select('#otherButton').style('fill', 'white');
+    d3.select('#specificLenButton').style('fill', 'white');
     updateNodes();
   } else {
     colorByOther = false;
     d3.select('#otherButton').style('fill', '#156B87');
     d3.select('#wordLengthButton').style('fill', 'white');
+    d3.select('#specificLenButton').style('fill', 'white');
     updateNodes();
   }
+}
+
+//this should be part of the toggleMetric function, and is only separate for quick testing purposes
+function colorBySpecificLen(){
+  colorSpecificLen = true;
+  d3.select('#otherButton').style('fill', 'white');
+  d3.select('#wordLengthButton').style('fill', 'white');
+  d3.select('#specificLenButton').style('fill', '#156B87');
+  len = document.getElementById('lengthInput').value;
+  updateNodes();
 }
 
 // visuals for toggle buttons
@@ -179,8 +210,18 @@ vis.append("rect")
   .style("fill", 'white')
   .on("click", toggleMetric);
 
+vis.append("rect")
+  .attr("id", "specificLenButton")
+  .attr("x", r/2 - 50)
+  .attr("y", 50)
+  .attr("width", 10)
+  .attr("height", 10)
+  .style("stroke", 'black')
+  .style("fill", 'white')
+  .on("click", colorBySpecificLen);
+
 vis.append("text")
-  .attr("id", "wordLengthButtonText")
+  .attr("id", "otherButtonText")
   .style("font-size", "12px")
   .attr("x", r/2+15-50)
   .attr("y", 19)
@@ -193,6 +234,13 @@ vis.append("text")
   .attr("y", 39)
   .text("color by something else");
 
+vis.append("text")
+  .attr("id", "specificLenButtonText")
+  .style("font-size", "12px")
+  .attr("x", r/2+15-50)
+  .attr("y", 59)
+  .text("color only words of specific length");
+
 
 var updateNodes = function() {
   var circs = vis.selectAll("g.node").selectAll('circle');
@@ -200,29 +248,37 @@ var updateNodes = function() {
   circs.transition()
     .duration(1000)
     .style("fill", function(d) {
+      if(colorSpecificLen)
+        return cFill(d, 3);//these literals should be enums?
       if(!colorByOther)
-        return cFill(d, true);
+        return cFill(d, 1);
       else
-        return cFill(d, false);
+        return cFill(d, 0);
     });
 
   circs.on("mouseover", function(d) {
-    if(colorByOther) {
+    if(colorSpecificLen){
+      d3.select("#word").text(d.className);
+      d3.select("#occurrences").text("Number of Occurrences: " + d.numOccurrences);
+      d3.select(this).style("fill", function(d) { return cFill(d, 2).brighter(); });
+    }else if(colorByOther) {
       d3.select("#word").text(d.className);
       d3.select("#occurrences").text("test2!!!!!!!!!!");
-      d3.select(this).style("fill", function(d) { return cFill(d, false).brighter(); });
+      d3.select(this).style("fill", function(d) { return cFill(d, 0).brighter(); });
     } else {
       d3.select("#word").text(d.className);
       d3.select("#occurrences").text("Number of Occurrences: " + d.numOccurrences);
-      d3.select(this).style("fill", function(d) { return cFill(d, true).brighter(); });
+      d3.select(this).style("fill", function(d) { return cFill(d, 1).brighter(); });
     }
   });
 
   circs.on("mouseout", function(d) {
-    if(colorByOther) {
-      d3.select(this).style("fill", function(d) { return cFill(d, false); });
+    if(colorSpecificLen){
+      d3.select(this).style("fill", function(d) { return cFill(d, 2); });
+    }else if(colorByOther) {
+      d3.select(this).style("fill", function(d) { return cFill(d, 0); });
     } else {
-      d3.select(this).style("fill", function(d) { return cFill(d, true); });
+      d3.select(this).style("fill", function(d) { return cFill(d, 1); });
     }
   });
 }
@@ -292,14 +348,14 @@ d3.json("dataBible.json", function(json) {
 
   node.append("circle")
     .attr("r", function(d) { return Math.sqrt(d.r * d.r * .8); })
-    .style("fill", function(d) { return cFill(d, true); })
+    .style("fill", function(d) { return cFill(d, 1); })
     .on("mouseover", function(d) {
       d3.select("#word").text(d.className);
       d3.select("#occurrences").text("Number of Occurrences: " + d.numOccurrences);
-      d3.select(this).style("fill", function(d) { return cFill(d, true).brighter(); });
+      d3.select(this).style("fill", function(d) { return cFill(d, 1).brighter(); });
     })
     .on("mouseout", function(d) {
-      d3.select(this).style("fill", function(d) { return cFill(d, true); });
+      d3.select(this).style("fill", function(d) { return cFill(d, 1); });
     });
 
   /* This will make the actual word show up on the bubble, but is problematic
